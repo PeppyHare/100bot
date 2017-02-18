@@ -25,6 +25,10 @@ During the project, we discovered several cool improvements:
 - Storing debug test responses in a JSON file so they wouldn't have to be typed repeatedly
 - Managing logic for JSON response loading vs input prompting for proper best coding practices 
 
+We also found a few difficulties:
+- Watson tone analysis is a bit tone deaf
+- Difficult to determine what changes Watson's opinion of tone
+
 Example:
 
 ![Screenshot of example conversation](example.png)
