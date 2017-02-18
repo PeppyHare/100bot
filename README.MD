@@ -24,3 +24,7 @@ During the project, we discovered several cool improvements:
 - Storing API credentials in a JSON file excluded from the repository, in order to protect credentials
 - Storing debug test responses in a JSON file so they wouldn't have to be typed repeatedly
 - Managing logic for JSON response loading vs input prompting for proper best coding practices 
+
+Example:
+
+![Screenshot of example conversation](example.png)
