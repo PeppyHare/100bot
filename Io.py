@@ -94,7 +94,7 @@ def main():
 		cred_obj = json.load(cred_file)
 
 	slack_client = SlackClient(cred_obj["slack_token"])
-	bot_id = "<@"+cred_obj["bot_id"]+">"
+	AT_BOT = "<@"+cred_obj["bot_id"]+">"
 
 
 	tone_analyzer = ToneAnalyzerV3(
