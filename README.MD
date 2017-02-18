@@ -2,6 +2,8 @@
 
 This project aimed to use the Watson Tone Analyzer API in order to create a basic conversation bot that can analyze user input for basic tones.
 
+Time spent: 2.5 hours
+
 The original list of minimum requirements was:
 - Use Python
 - Invoke the Watson Tone Analyzer API
