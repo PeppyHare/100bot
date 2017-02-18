@@ -3,12 +3,16 @@ from watson_developer_cloud import ToneAnalyzerV3
 import fileinput
 from pprint import pprint
 import argparse
+from slackclient import SlackClient
+import time
 
 #Authors: Alex French, Samuel Gass, Margaret Yim
 
 topic_limit = 5
+bot_name = 'io'
+AT_BOT = "<@"
 
-def talkAboutTopic(tone_analyzer, filename="", debug=False):
+def talkAboutTopic(tone_analyzer, slack_client, command, channel, filename="", debug=False):
 	emotions = dict(anger=0, disgust=0, fear=0, joy=0, sadness=0)
 
 	if debug:
@@ -16,13 +20,23 @@ def talkAboutTopic(tone_analyzer, filename="", debug=False):
 			resp_obj = json.load(resp_file)
 		topic = resp_obj["topic"]
 	else:
-		topic = input("What would you like to talk about?\n")
+		slack_client.api_call("chat.postMessage", channel=channel,
+                          text="What would you like to talk about?", as_user=True)
+		while True:
+			topic, channel = parse_slack_output(slack_client.rtm_read())
+			if topic and channel:
+				break
 	
 	for i in range(topic_limit):	
 		if debug:
 			resp = resp_obj["responses"][i]
 		else:
-			resp = input("Tell me more about this.\n")
+			slack_client.api_call("chat.postMessage", channel=channel,
+                          text="Tell me more", as_user=True)
+			while True:
+				resp, channel = parse_slack_output(slack_client.rtm_read())
+				if resp and channel:
+					break
 
 		analysis = tone_analyzer.tone(text=resp)
 		for category in analysis["document_tone"]["tone_categories"]:
@@ -41,22 +55,47 @@ def talkAboutTopic(tone_analyzer, filename="", debug=False):
 
 	max_key = max(emotions, key=emotions.get)
 	if emotions[max_key] < 0.5:
-		print("I'm not sure how you feel about this. Let's try another topic.\n")
+		slack_client.api_call("chat.postMessage", channel=channel,
+                          text="I'm not sure how you feel about this. Let's try another topic.", as_user=True)
 	else:
 		if max_key == "anger":
-			print("You seem angry about this. I'm sorry. Let's talk about something else.\n")
+			slack_client.api_call("chat.postMessage", channel=channel,
+                          text="You seem angry about this. I'm sorry. Let's talk about something else.", as_user=True)
 		if max_key == "disgust":
-			print("You seem disgusted by this. I'm sorry. Let's talk about something else.\n")
+			slack_client.api_call("chat.postMessage", channel=channel,
+                          text="You seem disgusted by this. I'm sorry. Let's talk about something else.", as_user=True)
 		if max_key == "fear":
-			print("You seem scared by this. Everything will be okay. Let's talk about something else.\n")
+			slack_client.api_call("chat.postMessage", channel=channel,
+                          text="You seem scared by this. Everything will be okay. Let's talk about something else.", as_user=True)
 		if max_key == "joy":
-			print("You seem happy about this! I'm glad for you. Let's talk about something else.\n")
+			slack_client.api_call("chat.postMessage", channel=channel,
+                          text="You seem happy about this! I'm glad for you. Let's talk about something else.", as_user=True)
 		if max_key == "sadness":
-			print("You seem sad about this. I'm sorry. Let's talk about something else.\n")
+			slack_client.api_call("chat.postMessage", channel=channel,
+                          text="You seem sad about this. I'm sorry. Let's talk about something else.", as_user=True)
+
+def parse_slack_output(slack_rtm_output):
+	"""
+		The Slack Real Time Messaging API is an events firehose.
+		this parsing function returns None unless a message is
+		directed at the Bot, based on its ID.
+	"""
+	output_list = slack_rtm_output
+	if output_list and len(output_list) > 0:
+		for output in output_list:
+			if output and 'text' in output and AT_BOT in output['text']:
+				# return text after the @ mention, whitespace removed
+				return output['text'].split(AT_BOT)[1].strip().lower(), \
+					   output['channel']
+	return None, None
 
 def main():
 	with open('creds.json') as cred_file:    
 		cred_obj = json.load(cred_file)
+
+	slack_client = SlackClient(cred_obj["slack_token"])
+	bot_id = "<@"+cred_obj["bot_id"]+">"
+
 
 	tone_analyzer = ToneAnalyzerV3(
 	   username=cred_obj["username"],
@@ -67,13 +106,19 @@ def main():
 	parser.add_argument("--debug", help="Read input from debug file instead of user input", type=str)
 	args = parser.parse_args()
 
-	if args.debug:
-		talkAboutTopic(tone_analyzer, args.debug, True)
+	READ_WEBSOCKET_DELAY = 1 # 1 second delay between reading from firehose
+	if slack_client.rtm_connect():
+		print("StarterBot connected and running!")
+		while True:
+			command, channel = parse_slack_output(slack_client.rtm_read())
+			if command and channel:
+				if args.debug:
+					talkAboutTopic(tone_analyzer, slack_client, command, channel, args.debug, True)
+				else:
+					talkAboutTopic(tone_analyzer, slack_client, command, channel)
+			time.sleep(READ_WEBSOCKET_DELAY)
 	else:
-		name=input("Hello, my name is Io. What is your name?\n")
-		print("Hello, " + name)
-		while(1):
-			talkAboutTopic(tone_analyzer)
+		print("Connection failed. Invalid Slack token or bot ID?")
 
 if __name__ == "__main__":
 	main()
