@@ -2,23 +2,24 @@ import json
 from watson_developer_cloud import ToneAnalyzerV3
 import fileinput
 from pprint import pprint
+import argparse
 
 #Authors: Alex French, Samuel Gass, Margaret Yim
 
 topic_limit = 5
 
-def talkAboutTopic(tone_analyzer, debug=False):
+def talkAboutTopic(tone_analyzer, filename="", debug=False):
 	emotions = dict(anger=0, disgust=0, fear=0, joy=0, sadness=0)
 
-	if(debug):
-		with open('test_resp.json') as resp_file:    
+	if debug:
+		with open(filename) as resp_file:    
 			resp_obj = json.load(resp_file)
 		topic = resp_obj["topic"]
 	else:
 		topic = input("What would you like to talk about?\n")
 	
 	for i in range(topic_limit):	
-		if(debug):
+		if debug:
 			resp = resp_obj["responses"][i]
 		else:
 			resp = input("Tell me more about this.\n")
@@ -39,7 +40,7 @@ def talkAboutTopic(tone_analyzer, debug=False):
 						emotions['sadness'] = (emotions['sadness']*i + tone["score"])/(i+1)
 
 	max_key = max(emotions, key=emotions.get)
-	if emotions[max_key] < 0.7:
+	if emotions[max_key] < 0.5:
 		print("I'm not sure how you feel about this. Let's try another topic.\n")
 	else:
 		if max_key == "anger":
@@ -62,11 +63,14 @@ def main():
 	   password=cred_obj["password"],
 	   version='2016-05-19')
 
-	name=input("Hello, my name is Io. What is your name?\n")
+	parser = argparse.ArgumentParser()
+	parser.add_argument("--debug", help="Read input from debug file instead of user input", type=str)
+	args = parser.parse_args()
 
-	if(name == "debug"):
-		talkAboutTopic(tone_analyzer, True)
+	if args.debug:
+		talkAboutTopic(tone_analyzer, args.debug, True)
 	else:
+		name=input("Hello, my name is Io. What is your name?\n")
 		print("Hello, " + name)
 		while(1):
 			talkAboutTopic(tone_analyzer)
