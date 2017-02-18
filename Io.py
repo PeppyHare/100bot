@@ -3,6 +3,8 @@ from watson_developer_cloud import ToneAnalyzerV3
 import fileinput
 from pprint import pprint
 
+#Authors: Alex French, Samuel Gass, Margaret Yim
+
 topic_limit = 5
 
 def talkAboutTopic(tone_analyzer, debug=False):
