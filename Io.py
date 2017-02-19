@@ -10,7 +10,7 @@ import time
 
 topic_limit = 5
 bot_name = 'io'
-AT_BOT = "<@"
+AT_BOT = ""
 
 def talkAboutTopic(tone_analyzer, slack_client, command, channel, filename="", debug=False):
 	emotions = dict(anger=0, disgust=0, fear=0, joy=0, sadness=0)
@@ -94,8 +94,8 @@ def main():
 		cred_obj = json.load(cred_file)
 
 	slack_client = SlackClient(cred_obj["slack_token"])
+	global AT_BOT
 	AT_BOT = "<@"+cred_obj["bot_id"]+">"
-
 
 	tone_analyzer = ToneAnalyzerV3(
 	   username=cred_obj["username"],
