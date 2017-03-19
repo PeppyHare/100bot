@@ -1,116 +1,113 @@
+#!/usr/bin/env python3
 """
 Authors: Alex French, Samuel Gass, Margaret Yim
 """
 
 import json
-from watson_developer_cloud import ToneAnalyzerV3
+import os
 import fileinput
-from pprint import pprint
 import argparse
-from slackclient import SlackClient
 import time
+import logging
+import sys
+import random
+from watson_developer_cloud import ToneAnalyzerV3
+from pprint import pprint
+from slackclient import SlackClient
+
+logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
 
 
-topic_limit = 5
-bot_name = 'io'
-AT_BOT = ""
+class IoBot(object):
+    """
+    Wow wow such iobot
 
+    Hard-coding the bot ID for now, but will pass those in to the constructor
+    later
+    """
 
-def talkAboutTopic(tone_analyzer,
-                   slack_client,
-                   command,
-                   channel,
-                   filename="",
-                   debug=False):
-    emotions = dict(anger=0, disgust=0, fear=0, joy=0, sadness=0)
+    def __init__(self, bx_username, bx_password, slack_token):
 
-    if debug:
-        with open(filename) as resp_file:
-            resp_obj = json.load(resp_file)
-        topic = resp_obj["topic"]
-    else:
-        slack_client.api_call(
-            "chat.postMessage",
-            channel=channel,
-            text="What would you like to talk about?",
-            as_user=True)
-        while True:
-            topic, channel = parse_slack_output(slack_client.rtm_read())
-            if topic and channel:
-                break
+        self._bot_id = "U4KGN2MAL"
+        # self._at_bot = "<@" + self._bot_id + ">"
+        self._READ_WEBSOCKET_DELAY = 1  # 1 second delay between reading from firehose
+        self.sc = SlackClient(slack_token)
+        self.ta = ToneAnalyzerV3(
+            username=bx_username, password=bx_password, version='2016-05-19')
 
-    for i in range(topic_limit):
-        if debug:
-            resp = resp_obj["responses"][i]
-        else:
-            slack_client.api_call(
-                "chat.postMessage",
-                channel=channel,
-                text="Tell me more",
-                as_user=True)
+    def listen(self):
+        slack_client = self.sc
+        tone_analyzer = self.ta
+        if slack_client.rtm_connect():
+            logging.info("StarterBot connected and running!")
             while True:
-                resp, channel = parse_slack_output(slack_client.rtm_read())
-                if resp and channel:
-                    break
+                event = parse_slack_output(slack_client.rtm_read())
+                if event:
+                    logging.info("event received from slack: %s",
+                                 event.get('text'))
+                    psychoAnalyze(
+                        tone_analyzer=tone_analyzer,
+                        slack_client=slack_client,
+                        event=event)
+                time.sleep(self._READ_WEBSOCKET_DELAY)
+        else:
+            logging.error("Connection failed. Invalid Slack token or bot ID?")
 
-        analysis = tone_analyzer.tone(text=resp)
-        for category in analysis["document_tone"]["tone_categories"]:
-            if category["category_id"] == "emotion_tone":
-                for tone in category["tones"]:
-                    if tone["tone_id"] == "anger":
-                        emotions['anger'] = (
-                            emotions['anger'] * i + tone["score"]) / (i + 1)
-                    if tone["tone_id"] == "disgust":
-                        emotions['disgust'] = (
-                            emotions['disgust'] * i + tone["score"]) / (i + 1)
-                    if tone["tone_id"] == "fear":
-                        emotions['fear'] = (
-                            emotions['fear'] * i + tone["score"]) / (i + 1)
-                    if tone["tone_id"] == "joy":
-                        emotions['joy'] = (
-                            emotions['joy'] * i + tone["score"]) / (i + 1)
-                    if tone["tone_id"] == "sadness":
-                        emotions['sadness'] = (
-                            emotions['sadness'] * i + tone["score"]) / (i + 1)
 
-    max_key = max(emotions, key=emotions.get)
-    if emotions[max_key] < 0.5:
-        slack_client.api_call(
-            "chat.postMessage",
-            channel=channel,
-            text="I'm not sure how you feel about this. Let's try another topic.",
-            as_user=True)
+def psychoAnalyze(tone_analyzer, slack_client, event):
+    EMOTIONAL_THRESHOLD = 0.2
+    emotions = dict(anger=0, disgust=0, fear=0, joy=0, sadness=0)
+    analysis = tone_analyzer.tone(text=event.get('text'))
+    for category in analysis['document_tone']['tone_categories']:
+        if category['category_id'] == 'emotion_tone':
+            for tone in category['tones']:
+                if tone['tone_id'] == 'anger':
+                    emotions['anger'] = tone['score']
+                if tone['tone_id'] == 'disgust':
+                    emotions['disgust'] = tone['score']
+                if tone['tone_id'] == 'fear':
+                    emotions['fear'] = tone['score']
+                if tone['tone_id'] == 'joy':
+                    emotions['joy'] = tone['score']
+                if tone['tone_id'] == 'sadness':
+                    emotions['sadness'] = tone['score']
+    logging.info("Emotional parsing for statement \"%s\" complete: %s", event.get('text'), emotions)
+    vals = list(emotions.values())
+    keys = list(emotions.keys())
+    top_score = max(vals)
+    top_emotion = keys[vals.index(top_score)]
+
+    if top_score > EMOTIONAL_THRESHOLD:
+        logging.debug("This event merits an emoji response: %s",
+                      event)
+        rewardEmotion(
+            slack_client=slack_client,
+            emotion=top_emotion,
+            statement=event.get('text'),
+            channel=event.get('channel'),
+            timestamp=event.get('ts'))
     else:
-        if max_key == "anger":
-            slack_client.api_call(
-                "chat.postMessage",
-                channel=channel,
-                text="You seem angry about this. I'm sorry. Let's talk about something else.",
-                as_user=True)
-        if max_key == "disgust":
-            slack_client.api_call(
-                "chat.postMessage",
-                channel=channel,
-                text="You seem disgusted by this. I'm sorry. Let's talk about something else.",
-                as_user=True)
-        if max_key == "fear":
-            slack_client.api_call(
-                "chat.postMessage",
-                channel=channel,
-                text="You seem scared by this. Everything will be okay. Let's talk about something else.",
-                as_user=True)
-        if max_key == "joy":
-            slack_client.api_call(
-                "chat.postMessage",
-                channel=channel,
-                text="You seem happy about this! I'm glad for you. Let's talk about something else.",
-                as_user=True)
-        if max_key == "sadness":
-            slack_client.api_call(
-                "chat.postMessage",
-                channel=channel,
-                text="You seem sad about this. I'm sorry. Let's talk about something else.",
-                as_user=True)
+        logging.debug("Decided this event only got a %s score of %f, so no response: %s", max(emotions), top_score, event)
+
+
+def rewardEmotion(slack_client, emotion, statement, channel, timestamp):
+    the_database = {
+        'anger': ['hummus', 'rage', 'upside_down_face', 'pouting_cat', 'dove_of_peace', 'wind_blowing_face', 'dealwithitparrot'],
+        'disgust': ['pizza', 'dizzy_face', 'boredparrot', 'no_mouth', 'neutral_face', 'disappointed', 'hankey', 'shit', 'pouting_cat', 'thumbsdown'],
+        'fear': ['scream_cat', 'scream', 'confusedparrot', 'runner', 'slightly_smiling_face', 'no_mouth', 'flushed', 'ghost', 'thumbsdown', 'jack_o_lantern', 'sweat_drops'],
+        'joy': ['partyparrot', '100', 'blue_heart', 'pancakes', 'beers', 'sparkles', 'heart_eyes_cat', 'raised_hands', 'clap', 'fire', 'beers'],
+        'sadness': ['sadparrot', 'pouting_cat', 'thumbsdown', 'wind_blowing_face', 'broken_heart']
+    }
+    # Pick a random emoji matching the appropriate emotion
+    perfect_choice = random.choice(the_database[emotion])
+    logging.info("We have selected the wonderful %s for this event",
+                 perfect_choice)
+    # Add it as a reaction to the message
+    slack_client.api_call(
+        "reactions.add",
+        channel=channel,
+        name=perfect_choice,
+        timestamp=timestamp)
 
 
 def parse_slack_output(slack_rtm_output):
@@ -122,48 +119,67 @@ def parse_slack_output(slack_rtm_output):
     output_list = slack_rtm_output
     if output_list and len(output_list) > 0:
         for output in output_list:
-            if output and 'text' in output and AT_BOT in output['text']:
-                # return text after the @ mention, whitespace removed
-                return output['text'].split(AT_BOT)[1].strip().lower(), \
-                    output['channel']
-    return None, None
+            # We are a creepy bot, we listen to everything you say
+            if output and 'text' in output:
+                return output
+    return None
+
+
+def try_load_env_var(var_name):
+    """Read environment variables into a configuration object
+
+    Args:
+        var_name (str): Environment variable name to attempt to read
+    """
+    value = None
+    if var_name in os.environ:
+        value = os.environ[var_name]
+    else:
+        logging.info(
+            "Environment variable %s is not set. Will try to read from command-line",
+            var_name)
+    return value
 
 
 def main():
-    with open('creds.json') as cred_file:
-        cred_obj = json.load(cred_file)
-
-    slack_client = SlackClient(cred_obj["slack_token"])
-    global AT_BOT
-    AT_BOT = "<@" + cred_obj["bot_id"] + ">"
-
-    tone_analyzer = ToneAnalyzerV3(
-        username=cred_obj["username"],
-        password=cred_obj["password"],
-        version='2016-05-19')
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--debug",
+        dest="debug",
         help="Read input from debug file instead of user input",
-        type=str)
+        type=str,
+        required=False)
+    parser.add_argument(
+        "--bx-username",
+        dest="bx_username",
+        help="Bluemix Tone Analyzer username",
+        type=str,
+        required=False,
+        default=try_load_env_var("BX_USERNAME"))
+    parser.add_argument(
+        "--bx-password",
+        dest="bx_password",
+        help="Bluemix Tone Analyzer password",
+        type=str,
+        required=False,
+        default=try_load_env_var("BX_PASSWORD"))
+    parser.add_argument(
+        "--slack-token",
+        dest="slack_token",
+        help="Slack client token",
+        type=str,
+        required=False,
+        default=try_load_env_var("SLACK_TOKEN"))
     args = parser.parse_args()
+    if not (args.bx_username and args.bx_password and args.slack_token):
+        parser.print_help()
+        sys.exit(1)
 
-    READ_WEBSOCKET_DELAY = 1  # 1 second delay between reading from firehose
-    if slack_client.rtm_connect():
-        print("StarterBot connected and running!")
-        while True:
-            command, channel = parse_slack_output(slack_client.rtm_read())
-            if command and channel:
-                if args.debug:
-                    talkAboutTopic(tone_analyzer, slack_client, command,
-                                   channel, args.debug, True)
-                else:
-                    talkAboutTopic(tone_analyzer, slack_client, command,
-                                   channel)
-            time.sleep(READ_WEBSOCKET_DELAY)
-    else:
-        print("Connection failed. Invalid Slack token or bot ID?")
+    iobot = IoBot(
+        bx_username=args.bx_username,
+        bx_password=args.bx_password,
+        slack_token=args.slack_token)
+    iobot.listen()
 
 
 if __name__ == "__main__":
