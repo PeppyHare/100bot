@@ -4,6 +4,6 @@ RUN pip install watson_developer_cloud slackclient
 
 RUN mkdir -p /app/iobot
 
-ADD Io.py /app/iobot/Io.py
+ADD 100bot.py /app/iobot/100bot.py
 
-ENTRYPOINT ["python3", "/app/iobot/Io.py"]
+ENTRYPOINT ["python3", "/app/iobot/100bot.py"]

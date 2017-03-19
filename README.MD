@@ -21,7 +21,10 @@ The bot requires three very specific parameters:
 Passing these in is easiest with argparse:
 
 ```shell
-python3 100bot.py --bx-username "user" --bx-password "verysecret" --slack-token "xoob-137138657231-2ReKEpxlvWwe6vDBripOs7sR"
+python3 100bot.py \
+ --bx-username "user" \
+ --bx-password "verysecret" \
+ --slack-token "xoob-137138657231-2ReKEpxlvWwe6vDBripOs7sR"
 
 ```
 
