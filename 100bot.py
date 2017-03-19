@@ -18,9 +18,9 @@ from slackclient import SlackClient
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
 
 
-class IoBot(object):
+class EmojiBot(object):
     """
-    Wow wow such iobot
+    Wow wow such EmojiBot
 
     Hard-coding the bot ID for now, but will pass those in to the constructor
     later
@@ -28,8 +28,7 @@ class IoBot(object):
 
     def __init__(self, bx_username, bx_password, slack_token):
 
-        self._bot_id = "U4KGN2MAL"
-        # self._at_bot = "<@" + self._bot_id + ">"
+        self._bot_id = "U4M6Z42JK"
         self._READ_WEBSOCKET_DELAY = 1  # 1 second delay between reading from firehose
         self.sc = SlackClient(slack_token)
         self.ta = ToneAnalyzerV3(
@@ -71,15 +70,15 @@ def psychoAnalyze(tone_analyzer, slack_client, event):
                     emotions['joy'] = tone['score']
                 if tone['tone_id'] == 'sadness':
                     emotions['sadness'] = tone['score']
-    logging.info("Emotional parsing for statement \"%s\" complete: %s", event.get('text'), emotions)
+    logging.info("Emotional parsing for statement \"%s\" complete: %s",
+                 event.get('text'), emotions)
     vals = list(emotions.values())
     keys = list(emotions.keys())
     top_score = max(vals)
     top_emotion = keys[vals.index(top_score)]
 
     if top_score > EMOTIONAL_THRESHOLD:
-        logging.debug("This event merits an emoji response: %s",
-                      event)
+        logging.debug("This event merits an emoji response: %s", event)
         rewardEmotion(
             slack_client=slack_client,
             emotion=top_emotion,
@@ -87,16 +86,35 @@ def psychoAnalyze(tone_analyzer, slack_client, event):
             channel=event.get('channel'),
             timestamp=event.get('ts'))
     else:
-        logging.debug("Decided this event only got a %s score of %f, so no response: %s", max(emotions), top_score, event)
+        logging.debug(
+            "Decided this event only got a %s score of %f, so no response: %s",
+            max(emotions), top_score, event)
 
 
 def rewardEmotion(slack_client, emotion, statement, channel, timestamp):
     the_database = {
-        'anger': ['hummus', 'rage', 'upside_down_face', 'pouting_cat', 'dove_of_peace', 'wind_blowing_face', 'dealwithitparrot'],
-        'disgust': ['pizza', 'dizzy_face', 'boredparrot', 'no_mouth', 'neutral_face', 'disappointed', 'hankey', 'shit', 'pouting_cat', 'thumbsdown'],
-        'fear': ['scream_cat', 'scream', 'confusedparrot', 'runner', 'slightly_smiling_face', 'no_mouth', 'flushed', 'ghost', 'thumbsdown', 'jack_o_lantern', 'sweat_drops'],
-        'joy': ['partyparrot', '100', 'blue_heart', 'pancakes', 'beers', 'sparkles', 'heart_eyes_cat', 'raised_hands', 'clap', 'fire', 'beers'],
-        'sadness': ['sadparrot', 'pouting_cat', 'thumbsdown', 'wind_blowing_face', 'broken_heart']
+        'anger': [
+            'hummus', 'rage', 'upside_down_face', 'pouting_cat',
+            'dove_of_peace', 'wind_blowing_face', 'dealwithitparrot'
+        ],
+        'disgust': [
+            'pizza', 'dizzy_face', 'boredparrot', 'no_mouth', 'neutral_face',
+            'disappointed', 'hankey', 'shit', 'pouting_cat', 'thumbsdown'
+        ],
+        'fear': [
+            'scream_cat', 'scream', 'confusedparrot', 'runner',
+            'slightly_smiling_face', 'no_mouth', 'flushed', 'ghost',
+            'thumbsdown', 'jack_o_lantern', 'sweat_drops'
+        ],
+        'joy': [
+            'partyparrot', '100', 'blue_heart', 'pancakes', 'beers',
+            'sparkles', 'heart_eyes_cat', 'raised_hands', 'clap', 'fire',
+            'beers'
+        ],
+        'sadness': [
+            'sadparrot', 'pouting_cat', 'thumbsdown', 'wind_blowing_face',
+            'broken_heart'
+        ]
     }
     # Pick a random emoji matching the appropriate emotion
     perfect_choice = random.choice(the_database[emotion])
@@ -112,9 +130,9 @@ def rewardEmotion(slack_client, emotion, statement, channel, timestamp):
 
 def parse_slack_output(slack_rtm_output):
     """
-        The Slack Real Time Messaging API is an events firehose.
-        this parsing function returns None unless a message is
-        directed at the Bot, based on its ID.
+    The Slack Real Time Messaging API is an events firehose. This parsing
+    function returns the last-seen message if there is one, otherwise returns
+    None
     """
     output_list = slack_rtm_output
     if output_list and len(output_list) > 0:
@@ -175,11 +193,11 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    iobot = IoBot(
+    eb = EmojiBot(
         bx_username=args.bx_username,
         bx_password=args.bx_password,
         slack_token=args.slack_token)
-    iobot.listen()
+    eb.listen()
 
 
 if __name__ == "__main__":
