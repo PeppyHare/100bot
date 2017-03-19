@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Authors: Alex French, Samuel Gass, Margaret Yim
+Authors: Evan Bluhm, Alex French, Samuel Gass, Margaret Yim
 """
 
 import json
