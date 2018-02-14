@@ -56,7 +56,7 @@ class EmojiBot(object):
 def psychoAnalyze(tone_analyzer, slack_client, event):
     EMOTIONAL_THRESHOLD = 0.6
     emotions = dict(anger=0, disgust=0, fear=0, joy=0, sadness=0)
-    analysis = tone_analyzer.tone(tone_input=event.get('text'))
+    analysis = tone_analyzer.tone(text=event.get('text'))
     for category in analysis['document_tone']['tone_categories']:
         if category['category_id'] == 'emotion_tone':
             for tone in category['tones']:
