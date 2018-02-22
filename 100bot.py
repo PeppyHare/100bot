@@ -86,7 +86,8 @@ def psychoAnalyze(event, slack_client, bxauth):
     logging.info("Emotional parsing for statement \"%s\" complete: %s",
                  event.get('text'), emotions)
 
-    sorted_emotions = sorted(emotions.items(), key=operator.itemgetter(1), reverse=True)
+    sorted_emotions = sorted(
+        emotions.items(), key=operator.itemgetter(1), reverse=True)
     (top_emotion, top_score) = sorted_emotions[0]
     if top_score > EMOTIONAL_THRESHOLD:
         logging.debug("This event merits an emoji response: %s", event)
