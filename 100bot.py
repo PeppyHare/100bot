@@ -109,7 +109,7 @@ def rewardEmotion(slack_client, emotion, statement, channel, timestamp):
         'joy': [
             'partyparrot', '100', 'blue_heart', 'pancakes', 'beers',
             'sparkles', 'heart_eyes_cat', 'raised_hands', 'clap', 'fire',
-            'beers'
+            'beers', 'fish_cake'
         ],
         'sadness': [
             'sadparrot', 'pouting_cat', 'thumbsdown', 'wind_blowing_face',
