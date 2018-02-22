@@ -1,6 +1,6 @@
-FROM python:3
+FROM python:3-alpine
 
-RUN pip install watson_developer_cloud==0.26.0 slackclient
+RUN pip install slackclient requests
 
 RUN mkdir -p /app/iobot
 

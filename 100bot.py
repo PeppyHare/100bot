@@ -5,17 +5,19 @@ Authors: Evan Bluhm, Alex French, Samuel Gass, Margaret Yim
 
 import json
 import os
-import fileinput
 import argparse
-import time
 import logging
-import sys
 import random
-from watson_developer_cloud import ToneAnalyzerV3
-from pprint import pprint
+import requests
+import sys
+import time
+import operator
+from requests.auth import HTTPBasicAuth
 from slackclient import SlackClient
 
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
+
+WATSON_API_ENDPOINT = 'https://gateway.watsonplatform.net/tone-analyzer/api/v3'
 
 
 class EmojiBot(object):
@@ -29,14 +31,13 @@ class EmojiBot(object):
     def __init__(self, bx_username, bx_password, slack_token):
 
         self._bot_id = "U4M6Z42JK"
-        self._READ_WEBSOCKET_DELAY = 1  # 1 second delay between reading from firehose
+        # 1 second delay between reading from firehose
+        self._READ_WEBSOCKET_DELAY = 1
         self.sc = SlackClient(slack_token)
-        self.ta = ToneAnalyzerV3(
-            username=bx_username, password=bx_password, version='2016-05-19')
+        self.bxauth = HTTPBasicAuth(username=bx_username, password=bx_password)
 
     def listen(self):
         slack_client = self.sc
-        tone_analyzer = self.ta
         if slack_client.rtm_connect():
             logging.info("StarterBot connected and running!")
             while True:
@@ -45,18 +46,30 @@ class EmojiBot(object):
                     logging.info("event received from slack: %s",
                                  event.get('text'))
                     psychoAnalyze(
-                        tone_analyzer=tone_analyzer,
+                        event=event,
                         slack_client=slack_client,
-                        event=event)
+                        bxauth=self.bxauth)
                 time.sleep(self._READ_WEBSOCKET_DELAY)
         else:
             logging.error("Connection failed. Invalid Slack token or bot ID?")
 
 
-def psychoAnalyze(tone_analyzer, slack_client, event):
+def psychoAnalyze(event, slack_client, bxauth):
     EMOTIONAL_THRESHOLD = 0.6
+    payload = {
+        'text': event.get('text'),
+        'version': '2016-05-19',
+        'Content-Type': 'text/plain;charset=utf-8'
+    }
+    resp = requests.get(
+        WATSON_API_ENDPOINT + '/tone', params=payload, auth=bxauth)
+    if resp.status_code != 200:
+        logging.error(
+            "Failed request for tone data from Watson: %s" % resp.text)
+        return False
+    analysis = json.loads(resp.text)
     emotions = dict(anger=0, disgust=0, fear=0, joy=0, sadness=0)
-    analysis = tone_analyzer.tone(text=event.get('text'))
+
     for category in analysis['document_tone']['tone_categories']:
         if category['category_id'] == 'emotion_tone':
             for tone in category['tones']:
@@ -72,11 +85,10 @@ def psychoAnalyze(tone_analyzer, slack_client, event):
                     emotions['sadness'] = tone['score']
     logging.info("Emotional parsing for statement \"%s\" complete: %s",
                  event.get('text'), emotions)
-    vals = list(emotions.values())
-    keys = list(emotions.keys())
-    top_score = max(vals)
-    top_emotion = keys[vals.index(top_score)]
 
+    sorted_emotions = sorted(
+        emotions.items(), key=operator.itemgetter(1), reverse=True)
+    (top_emotion, top_score) = sorted_emotions[0]
     if top_score > EMOTIONAL_THRESHOLD:
         logging.debug("This event merits an emoji response: %s", event)
         rewardEmotion(
@@ -109,11 +121,11 @@ def rewardEmotion(slack_client, emotion, statement, channel, timestamp):
         'joy': [
             'partyparrot', '100', 'blue_heart', 'pancakes', 'beers',
             'sparkles', 'heart_eyes_cat', 'raised_hands', 'clap', 'fire',
-            'beers'
+            'beers', 'fish_cake'
         ],
         'sadness': [
             'sadparrot', 'pouting_cat', 'thumbsdown', 'wind_blowing_face',
-            'broken_heart'
+            'broken_heart', 'greyhound'
         ]
     }
     # Pick a random emoji matching the appropriate emotion
