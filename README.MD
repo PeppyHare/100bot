@@ -18,7 +18,18 @@ The bot requires three very specific parameters:
  - A Watson Tone Analyzer `password` credential
  - A Slack Integration Token for a bot
 
-Passing these in is easiest with argparse:
+### Running with docker-compose
+
+The easiest way to get 100bot up and running with dependencies is by using the docker service file included: `docker-compose.yml`. Modify the supplied `.env-sample` to provide credentials for the Watson Tone Analyzer and a Slack bot. Then build and start the service with:
+
+```shell
+docker-compose up -d
+```
+
+
+### Running natively with python
+
+Pip modules `slackclient` and `requests` must be installed. Use virtualenv to make your life easier. Passing of credentials can be done with argparse:
 
 ```shell
 python3 100bot.py \
