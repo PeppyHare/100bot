@@ -32,7 +32,7 @@ docker-compose up -d
 Pip modules `slackclient` and `requests` must be installed. Use virtualenv to make your life easier. Passing of credentials can be done with argparse:
 
 ```shell
-python3 100bot.py \
+python3 slack100bot.py \
  --bx-username "user" \
  --bx-password "verysecret" \
  --slack-token "xoob-137138657231-2ReKEpxlvWwe6vDBripOs7sR"
@@ -45,7 +45,7 @@ but can also be done with environment variables:
 export BLUEMIX_USERNAME=user
 export BLUEMIX_PASSWORD=verysecret
 export SLACK_TOKEN="xoob-137138657231-2ReKEpxlvWwe6vDBripOs7sR"
-python3 100bot.py
+python3 slack100bot.py
 
 ```
 
